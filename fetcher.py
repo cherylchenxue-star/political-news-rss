@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-政治新闻聚合器 - 聚合新浪、中新网、新华网头条新闻
+政治新闻聚合器 - 聚合新浪、中新网、新华网头条政治新闻
 每天早上7:00自动抓取，筛选热度最高的政治新闻
 """
 
@@ -26,38 +26,26 @@ logger = logging.getLogger(__name__)
 
 # ============ 数据源配置 ============
 
-SINA_API_CONFIG = {
-    "china": {
-        "url": "https://feed.mix.sina.com.cn/api/roll/get?pageid=153&lid=2516&num=30",
-        "name": "新浪国内",
-        "weight": 0.85,
-        "category": "domestic",
-    },
-    "world": {
-        "url": "https://feed.mix.sina.com.cn/api/roll/get?pageid=153&lid=2515&num=30",
-        "name": "新浪国际",
-        "weight": 0.8,
-        "category": "international",
-    },
-}
+# 新浪财经 API 获取的是财经频道（lid=2516/2515），不是政治新闻
+# 因此不纳入政治新闻聚合，只保留中新网 RSS 和新华网网页抓取
 
 RSS_SOURCES = {
     "chinanews_scroll": {
         "url": "https://www.chinanews.com.cn/rss/scroll-news.xml",
         "name": "中新网滚动",
-        "weight": 0.9,
+        "weight": 0.95,
         "category": "mixed",
     },
     "chinanews_china": {
         "url": "https://www.chinanews.com.cn/rss/china.xml",
         "name": "中新网国内",
-        "weight": 0.9,
+        "weight": 0.95,
         "category": "domestic",
     },
     "chinanews_world": {
         "url": "https://www.chinanews.com.cn/rss/world.xml",
         "name": "中新网国际",
-        "weight": 0.85,
+        "weight": 0.9,
         "category": "international",
     },
 }
@@ -78,29 +66,60 @@ WEB_SOURCES = {
 }
 
 
-# ============ 智能标签配置 ============
+# ============ 政治新闻关键词（用于筛选） ============
+
+POLITICAL_KEYWORDS = [
+    # 国内政治
+    "两会", "人大", "政协", "国务院", "总书记", "主席", "总理", "政治局",
+    "常委", "反腐", "巡视", "八项规定", "深化改革", "机构改革", "依法治国",
+    "政府工作报告", "中央", "党的领导", "党风廉政建设",
+    # 台海
+    "台湾", "台海", "两岸", "赖清德", "蔡英文", "台独", "统一", "台军",
+    # 中美
+    "特朗普", "拜登", "中美", "美中", "贸易战", "关税战", "芯片战", "脱钩",
+    "制裁", "实体清单", "白宫", "五角大楼", "驻华大使",
+    # 军事
+    "解放军", "国防", "军演", "演习", "航母", "导弹", "战机", "歼", "东风",
+    "核潜艇", "南海", "东海", "边境", "军费", "火箭军",
+    # 外交
+    "外交部", "王毅", "国事访问", "峰会", "G20", "APEC", "金砖", "上合",
+    "一带一路", "联合国", "世卫组织",
+    # 俄乌
+    "普京", "俄罗斯", "乌克兰", "泽连斯基", "俄乌", "北约", "顿巴斯",
+    "克里米亚", "和谈", "停火",
+    # 中东
+    "以色列", "巴勒斯坦", "加沙", "哈马斯", "伊朗", "沙特", "巴以",
+    "黎巴嫩", "叙利亚", "也门", "胡塞",
+    # 科技
+    "芯片", "半导体", "华为", "航天", "卫星", "北斗", "空间站", "量子",
+    # 港澳
+    "香港", "澳门", "港府", "特首", "国安法", "一国两制",
+    # 半岛
+    "朝鲜", "韩国", "金正恩", "尹锡悦", "朝核",
+    # 欧洲
+    "欧盟", "马克龙", "朔尔茨", "脱欧", "欧央行",
+    # 亚太
+    "日本", "印度", "菲律宾", "东盟", "RCEP", "南海争端",
+    # 其他政治
+    "选举", "投票", "民意", "公投", "政变", "抗议", "示威", "罢工",
+    "关税", "贸易", "制裁", "封锁", "禁运", "外交", "冲突", "战争",
+    "和平", "谈判", "协议", "条约", "宣言", "决议",
+]
+
+
+# ============ 智能标签配置（精确匹配，避免泛滥） ============
 
 TAG_RULES = [
     {
         "tag": "国内政治",
         "keywords": [
-            "两会", "人大", "政协", "国务院", "总书记", "主席", "总理", "政治局",
-            "常委", "部委", "政府工作报告", "中央", "党的领导", "反腐", "巡视",
-            "八项规定", "党风廉政建设", "深化改革", "机构改革", "依法治国",
+            "两会", "全国人大", "全国政协", "国务院", "总书记", "主席",
+            "总理", "政治局", "常委", "部委", "政府工作报告",
+            "中央", "党的领导", "反腐", "巡视", "八项规定",
+            "党风廉政建设", "深化改革", "机构改革", "依法治国",
         ],
         "color": "#dc2626",
         "bg": "#fef2f2",
-    },
-    {
-        "tag": "经济金融",
-        "keywords": [
-            "GDP", "经济", "财政", "货币", "央行", "股市", "A股", "港股",
-            "贸易", "关税", "进出口", "汇率", "人民币", "美元", "通胀",
-            "降息", "加息", "降准", "房地产", "楼市", "就业", "消费",
-            "投资", "外资", "制造业", "产业链", "供应链",
-        ],
-        "color": "#059669",
-        "bg": "#f0fdf4",
     },
     {
         "tag": "台海局势",
@@ -114,9 +133,9 @@ TAG_RULES = [
     {
         "tag": "中美关系",
         "keywords": [
-            "特朗普", "拜登", "美国", "白宫", "国会", "五角大楼", "美中",
-            "中美贸易", "贸易战", "关税战", "芯片战", "科技战", "脱钩",
-            "制裁", "实体清单", "驻华大使",
+            "特朗普", "拜登", "中美贸易", "美中", "贸易战", "关税战",
+            "芯片战", "科技战", "脱钩", "实体清单", "白宫", "五角大楼",
+            "美国制裁", "对华制裁", "制裁中国", "中美关系",
         ],
         "color": "#2563eb",
         "bg": "#eff6ff",
@@ -124,9 +143,9 @@ TAG_RULES = [
     {
         "tag": "军事国防",
         "keywords": [
-            "军队", "解放军", "国防", "军演", "演习", "航母", "导弹",
-            "战机", "歼", "东风", "核潜艇", "南海", "东海", "边境",
-            "军费", "装备", "武器", "火箭军", "战略",
+            "解放军", "国防", "军演", "演习", "航母", "导弹",
+            "战机", "歼-", "东风-", "核潜艇", "南海", "东海", "边境",
+            "军费", "火箭军", "军事", "军队",
         ],
         "color": "#7c3aed",
         "bg": "#f5f3ff",
@@ -134,10 +153,9 @@ TAG_RULES = [
     {
         "tag": "外交动态",
         "keywords": [
-            "外交", "外交部", "王毅", "会谈", "会晤", "访问", "出访",
-            "接待", "国事访问", "首脑", "峰会", "G20", "APEC", "金砖",
-            "上合", "一带一路", "中俄", "中欧", "中非", "中日", "中韩",
-            "东盟", "联合国", "世卫组织", "气候", "COP",
+            "外交部", "王毅", "国事访问", "首脑会晤", "峰会",
+            "G20", "APEC", "金砖国家", "上合组织", "一带一路",
+            "联合国", "世卫组织", "气候大会", "COP",
         ],
         "color": "#0891b2",
         "bg": "#ecfeff",
@@ -145,8 +163,8 @@ TAG_RULES = [
     {
         "tag": "俄乌冲突",
         "keywords": [
-            "普京", "俄罗斯", "乌克兰", "泽连斯基", "俄乌", "北约", "欧盟制裁",
-            "顿巴斯", "克里米亚", "和谈", "停火", "援乌", "战场",
+            "普京", "俄罗斯", "乌克兰", "泽连斯基", "俄乌", "北约",
+            "顿巴斯", "克里米亚", "和谈", "停火", "援乌",
         ],
         "color": "#c2410c",
         "bg": "#fff7ed",
@@ -154,18 +172,27 @@ TAG_RULES = [
     {
         "tag": "中东局势",
         "keywords": [
-            "以色列", "巴勒斯坦", "加沙", "哈马斯", "伊朗", "沙特", "中东",
-            "巴以", "黎巴嫩", "叙利亚", "也门", "胡塞", "真主党",
+            "以色列", "巴勒斯坦", "加沙", "哈马斯", "伊朗", "沙特",
+            "巴以", "黎巴嫩", "叙利亚", "也门", "胡塞",
         ],
         "color": "#d97706",
         "bg": "#fffbeb",
     },
     {
+        "tag": "经济金融",
+        "keywords": [
+            "GDP", "央行", "股市", "A股", "港股", "关税", "汇率",
+            "人民币", "降息", "加息", "降准", "房地产", "楼市",
+            "通胀", "制造业", "产业链",
+        ],
+        "color": "#059669",
+        "bg": "#f0fdf4",
+    },
+    {
         "tag": "科技前沿",
         "keywords": [
-            "AI", "人工智能", "芯片", "半导体", "华为", "5G", "6G",
-            "航天", "卫星", "北斗", "嫦娥", "神舟", "空间站", "登月",
-            "量子", "新能源", "电动车", "光伏", "风电",
+            "人工智能", "芯片", "半导体", "华为", "5G", "6G",
+            "航天", "卫星", "北斗", "空间站", "量子",
         ],
         "color": "#4f46e5",
         "bg": "#eef2ff",
@@ -175,7 +202,7 @@ TAG_RULES = [
         "keywords": [
             "民生", "就业", "教育", "医疗", "养老", "社保", "医保",
             "住房", "房价", "生育", "人口", "老龄化", "食品安全",
-            "环保", "污染", "灾害", "地震", "洪涝", "疫情", "健康",
+            "环保", "灾害", "地震", "洪涝", "疫情",
         ],
         "color": "#0d9488",
         "bg": "#f0fdfa",
@@ -183,8 +210,7 @@ TAG_RULES = [
     {
         "tag": "香港澳门",
         "keywords": [
-            "香港", "澳门", "港府", "特首", "国安法", "基本法", "一国两制",
-            "港澳", "大湾区", "粤港澳大湾区",
+            "香港", "澳门", "港府", "特首", "国安法", "一国两制",
         ],
         "color": "#be185d",
         "bg": "#fdf2f8",
@@ -192,8 +218,7 @@ TAG_RULES = [
     {
         "tag": "朝鲜半岛",
         "keywords": [
-            "朝鲜", "韩国", "金正恩", "尹锡悦", "半岛", "朝核", "导弹试射",
-            "板门店", "朝韩", "三八线",
+            "朝鲜", "韩国", "金正恩", "尹锡悦", "朝核", "导弹试射",
         ],
         "color": "#7c2d12",
         "bg": "#fff7ed",
@@ -201,8 +226,7 @@ TAG_RULES = [
     {
         "tag": "欧洲动态",
         "keywords": [
-            "欧盟", "欧洲", "法国", "德国", "英国", "马克龙", "朔尔茨",
-            "脱欧", "北约", "欧央行", "申根", "难民",
+            "欧盟", "马克龙", "朔尔茨", "脱欧", "欧央行", "申根",
         ],
         "color": "#4338ca",
         "bg": "#eef2ff",
@@ -210,8 +234,7 @@ TAG_RULES = [
     {
         "tag": "亚太周边",
         "keywords": [
-            "日本", "印度", "菲律宾", "越南", "澳大利亚", "印尼", "泰国",
-            "东盟", "RCEP", "CPTPP", "印太", "南海争端",
+            "日本", "印度", "菲律宾", "东盟", "RCEP", "南海争端",
         ],
         "color": "#0369a1",
         "bg": "#f0f9ff",
@@ -229,7 +252,6 @@ HEAT_KEYWORDS = {
 # ============ 核心函数 ============
 
 def fetch_url(url: str, timeout: int = 30) -> str:
-    """获取 URL 内容"""
     headers = {
         "User-Agent": (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -253,7 +275,6 @@ def fetch_url(url: str, timeout: int = 30) -> str:
 
 
 def fetch_json(url: str, timeout: int = 30) -> dict:
-    """获取 JSON 数据"""
     headers = {
         "User-Agent": (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -267,14 +288,11 @@ def fetch_json(url: str, timeout: int = 30) -> dict:
     try:
         response = requests.get(url, headers=headers, timeout=timeout)
         response.raise_for_status()
-        # 新浪 API 返回的是 JSONP 格式，需要提取 JSON 部分
-        text = response.text
-        # 尝试直接解析 JSON
         try:
             return response.json()
         except Exception:
             pass
-        # 尝试提取 JSONP 中的 JSON
+        text = response.text
         match = re.search(r"[^(]*\((.*)\)[;\s]*$", text, re.DOTALL)
         if match:
             return json.loads(match.group(1))
@@ -297,13 +315,11 @@ def fetch_sina_news(config: dict) -> list[dict]:
     for news in news_list:
         title = news.get("title", "").strip()
         link = news.get("url", "").strip()
-        # 新浪 API 返回的标题可能有 HTML 实体
         title = re.sub(r"<[^>]+>", "", title)
 
         if not title or not link:
             continue
 
-        # 提取时间
         ctime = news.get("ctime", "")
         pub_date = ""
         pub_timestamp = 0.0
@@ -315,17 +331,15 @@ def fetch_sina_news(config: dict) -> list[dict]:
             except (ValueError, TypeError):
                 pass
 
-        # 提取摘要/关键词
         keywords = news.get("keywords", "")
         media_name = news.get("media_name", "")
-        summary = keywords if keywords else ""
 
         items.append({
             "title": title,
             "link": link,
             "pub_date": pub_date,
             "pub_timestamp": pub_timestamp,
-            "description": summary[:300],
+            "description": keywords[:300] if keywords else "",
             "source_name": media_name or config["name"],
             "source_weight": config["weight"],
             "category": config["category"],
@@ -336,7 +350,6 @@ def fetch_sina_news(config: dict) -> list[dict]:
 
 
 def parse_rss_items(xml_content: str, source_config: dict) -> list[dict]:
-    """解析 RSS XML"""
     items = []
     if not xml_content:
         return items
@@ -463,25 +476,21 @@ def _parse_date(date_str: str) -> float:
 
 
 def fetch_xinhua_news(config: dict) -> list[dict]:
-    """从新华网网页抓取新闻"""
     items = []
     html = fetch_url(config["url"])
     if not html:
         return items
 
     soup = BeautifulSoup(html, "html.parser")
-
-    # 新华网新闻链接特征：包含日期格式 /2026MMDD/ 或 /202604/
     seen_links = set()
+
     for a in soup.find_all("a", href=True):
         text = a.get_text(strip=True)
         href = a["href"]
 
-        # 过滤有效新闻链接
         if not text or len(text) < 8 or len(text) > 80:
             continue
 
-        # 新华网的链接特征
         is_news = False
         if "news.cn/politics/" in href and re.search(r"/\d{8}/", href):
             is_news = True
@@ -498,8 +507,6 @@ def fetch_xinhua_news(config: dict) -> list[dict]:
 
         if not is_news:
             continue
-
-        # 去重
         if href in seen_links:
             continue
         seen_links.add(href)
@@ -519,8 +526,16 @@ def fetch_xinhua_news(config: dict) -> list[dict]:
     return items[:20]
 
 
+def is_political_news(title: str, description: str) -> bool:
+    """判断是否为政治新闻"""
+    text = (title + " " + description).lower()
+    for kw in POLITICAL_KEYWORDS:
+        if kw.lower() in text:
+            return True
+    return False
+
+
 def fetch_article_summary(url: str) -> str:
-    """尝试从原文页面获取摘要"""
     html = fetch_url(url, timeout=12)
     if not html:
         return ""
@@ -529,21 +544,18 @@ def fetch_article_summary(url: str) -> str:
     for tag in soup(["script", "style", "nav", "header", "footer", "aside"]):
         tag.decompose()
 
-    # 新浪文章
     article = soup.select_one("#article_content, .article-content, .article, #artibody")
     if article:
         text = article.get_text(separator=" ", strip=True)
         text = re.sub(r"\s+", " ", text)
         return text[:400]
 
-    # 新华网
     article = soup.select_one(".detail-content, .article-content, #p-detail")
     if article:
         text = article.get_text(separator=" ", strip=True)
         text = re.sub(r"\s+", " ", text)
         return text[:400]
 
-    # 通用：取最长段落
     paragraphs = [p.get_text(strip=True) for p in soup.find_all("p")]
     paragraphs = [p for p in paragraphs if len(p) > 30]
     if paragraphs:
@@ -553,7 +565,6 @@ def fetch_article_summary(url: str) -> str:
 
 
 def auto_classify(link: str, text: str = "") -> str:
-    """根据链接自动判断是国内还是国际新闻"""
     if not link:
         return "domestic"
     link_lower = link.lower()
@@ -569,7 +580,6 @@ def auto_classify(link: str, text: str = "") -> str:
 
 
 def smart_tag(title: str, description: str) -> list[dict]:
-    """智能标签识别"""
     text = (title + " " + description).lower()
     tags = []
     for rule in TAG_RULES:
@@ -581,11 +591,10 @@ def smart_tag(title: str, description: str) -> list[dict]:
                     "bg": rule["bg"],
                 })
                 break
-    return tags[:4]
+    return tags[:3]
 
 
 def calculate_heat(news: dict) -> float:
-    """计算新闻热度分数"""
     score = 0.0
     text = (news["title"] + " " + news["description"]).lower()
 
@@ -614,7 +623,6 @@ def calculate_heat(news: dict) -> float:
 
 
 def deduplicate_news(news_list: list[dict]) -> list[dict]:
-    """去重"""
     seen = set()
     unique = []
     for news in news_list:
@@ -653,9 +661,9 @@ def generate_rss_xml(news_list: list[dict], output_path: str) -> None:
 
     channel = ET.SubElement(rss, "channel")
     ET.SubElement(channel, "title").text = "全球政治头条聚合"
-    ET.SubElement(channel, "link").text = "https://your-domain.github.io/political_news/"
+    ET.SubElement(channel, "link").text = "https://cherylchenxue-star.github.io/political-news-rss/"
     ET.SubElement(channel, "description").text = (
-        "每天早上7:00自动聚合新华网、中新网、新浪等权威媒体头条政治新闻，"
+        "每天早上自动聚合新华网、中新网、新浪新闻等权威媒体头条政治新闻，"
         "智能筛选热度最高内容"
     )
     ET.SubElement(channel, "language").text = "zh-CN"
@@ -724,14 +732,7 @@ def main() -> None:
 
     all_news = []
 
-    # 1. 新浪 API
-    for key, config in SINA_API_CONFIG.items():
-        logger.info(f"[新浪API] 正在获取: {config['name']}")
-        items = fetch_sina_news(config)
-        logger.info(f"  [OK] 获取到 {len(items)} 条新闻")
-        all_news.extend(items)
-
-    # 2. RSS 源
+    # 1. RSS 源（中新网）
     for key, config in RSS_SOURCES.items():
         logger.info(f"[RSS] 正在获取: {config['name']}")
         xml_content = fetch_url(config["url"])
@@ -742,7 +743,7 @@ def main() -> None:
         logger.info(f"  [OK] 解析到 {len(items)} 条新闻")
         all_news.extend(items)
 
-    # 3. 网页抓取（新华网）
+    # 2. 网页抓取（新华网）
     for key, config in WEB_SOURCES.items():
         logger.info(f"[网页] 正在抓取: {config['name']}")
         items = fetch_xinhua_news(config)
@@ -753,41 +754,51 @@ def main() -> None:
     logger.info(f"总计获取: {len(all_news)} 条原始新闻")
     logger.info(f"{'=' * 60}")
 
-    # 4. 去重
-    all_news = deduplicate_news(all_news)
-    logger.info(f"去重后: {len(all_news)} 条")
+    # 4. 政治新闻筛选
+    political_news = [n for n in all_news if is_political_news(n["title"], n["description"])]
+    logger.info(f"政治新闻筛选后: {len(political_news)} 条")
 
-    # 5. mixed 自动分类
-    for news in all_news:
+    # 如果没有筛选出足够的新闻，保留原始数据
+    if len(political_news) < 20:
+        logger.info(f"政治新闻不足，保留所有新闻")
+        political_news = all_news
+
+    # 5. 去重
+    political_news = deduplicate_news(political_news)
+    logger.info(f"去重后: {len(political_news)} 条")
+
+    # 6. mixed 自动分类
+    for news in political_news:
         if news["category"] == "mixed":
             news["category"] = auto_classify(news["link"], news["title"] + " " + news["description"])
 
-    # 6. 补充摘要（只补充前20条，避免太慢）
-    for news in all_news[:20]:
+    # 7. 补充摘要
+    for news in political_news[:20]:
         if len(news["description"]) < 30:
             summary = fetch_article_summary(news["link"])
             if summary:
                 news["description"] = summary[:400]
 
-    # 7. 智能标签
-    for news in all_news:
+    # 8. 智能标签
+    for news in political_news:
         news["tags"] = smart_tag(news["title"], news["description"])
 
-    # 8. 计算热度
-    for news in all_news:
+    # 9. 计算热度
+    for news in political_news:
         news["heat_score"] = calculate_heat(news)
 
-    # 9. 排序
-    all_news.sort(key=lambda x: x["heat_score"], reverse=True)
+    # 10. 排序
+    political_news.sort(key=lambda x: x["heat_score"], reverse=True)
 
-    # 10. 取 top
-    top_news = all_news[:40]
+    # 11. 取 top
+    top_news = political_news[:40]
 
-    # 11. 生成输出
+    # 12. 生成输出
+    import os
     generate_rss_xml(top_news, "political_news_rss.xml")
     generate_json_data(top_news, "news_data.json")
 
-    # 12. 打印结果
+    # 13. 打印结果
     logger.info(f"\n{'=' * 60}")
     logger.info("热度 TOP 20 新闻:")
     logger.info(f"{'=' * 60}")
