@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>全球政治头条 | 智能聚合</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css">
+  <link rel="alternate" type="application/rss+xml" title="全球政治头条 RSS" href="political_news_rss.xml">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: { 50: '#fef2f2', 100: '#fee2e2', 500: '#dc2626', 600: '#b91c1c', 700: '#991b1b', 900: '#7f1d1d' },
+            gold: { 50: '#fffbeb', 100: '#fef3c7', 500: '#f59e0b', 600: '#d97706' },
+          },
+          fontFamily: {
+            sans: ['-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', '"Noto Sans SC"', 'sans-serif'],
+            serif: ['"Noto Serif SC"', 'Georgia', 'serif'],
+          },
+          boxShadow: {
+            'card': '0 1px 3px 0 rgba(0,0,0,0.05), 0 4px 12px 0 rgba(0,0,0,0.08)',
+            'card-hover': '0 4px 6px -1px rgba(0,0,0,0.08), 0 10px 24px 0 rgba(0,0,0,0.12)',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap');
+
+    body { font-family: 'Noto Sans SC', -apple-system, sans-serif; }
+    .headline-font { font-family: 'Noto Serif SC', Georgia, serif; }
+
+    .tag-badge {
+      transition: all 0.2s ease;
+    }
+    .tag-badge:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .news-card {
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      border-left: 3px solid transparent;
+    }
+    .news-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 28px -4px rgba(0,0,0,0.12);
+      border-left-color: #dc2626;
+    }
+
+    .heat-bar {
+      background: linear-gradient(90deg, #fee2e2 0%, #fecaca 50%, #ef4444 100%);
+    }
+
+    .category-tab {
+      position: relative;
+      transition: all 0.2s ease;
+    }
+    .category-tab.active::after {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: #dc2626;
+      border-radius: 2px;
+    }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-in {
+      animation: fadeInUp 0.4s ease forwards;
+    }
+
+    .gradient-header {
+      background: linear-gradient(135deg, #7f1d1d 0%, #991b1b 50%, #b91c1c 100%);
+    }
+
+    .live-indicator {
+      animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .truncate-2 {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .truncate-3 {
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+  <!-- 顶部导航 -->
+  <header class="gradient-header text-white shadow-lg sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <div class="flex items-center space-x-3">
+          <div class="w-9 h-9 bg-white/15 rounded-lg flex items-center justify-center backdrop-blur">
+            <i class="fa fa-globe text-lg"></i>
+          </div>
+          <div>
+            <h1 class="text-lg font-bold tracking-wide">全球政治头条</h1>
+            <p class="text-xs text-red-200 -mt-0.5">智能聚合 · 热度排序</p>
+          </div>
+        </div>
+
+        <div class="flex items-center space-x-4">
+          <div class="hidden sm:flex items-center space-x-2 text-sm text-red-200">
+            <span class="w-2 h-2 bg-green-400 rounded-full live-indicator"></span>
+            <span id="update-time">加载中...</span>
+          </div>
+          <a href="political_news_rss.xml" target="_blank"
+             class="hidden sm:flex items-center space-x-1.5 bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg text-sm transition-colors backdrop-blur">
+            <i class="fa fa-rss text-orange-300"></i>
+            <span>RSS 订阅</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- 统计栏 -->
+  <div class="bg-white border-b border-gray-200 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+      <div class="flex items-center justify-between flex-wrap gap-3">
+        <div class="flex items-center space-x-6 text-sm">
+          <div class="flex items-center space-x-2">
+            <i class="fa fa-newspaper-o text-gray-400"></i>
+            <span class="text-gray-500">今日头条</span>
+            <span id="total-count" class="font-bold text-primary-700 text-lg">-</span>
+            <span class="text-gray-400">条</span>
+          </div>
+          <div class="hidden sm:flex items-center space-x-2">
+            <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+            <span class="text-gray-500">国内</span>
+            <span id="domestic-count" class="font-semibold text-gray-700">-</span>
+          </div>
+          <div class="hidden sm:flex items-center space-x-2">
+            <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+            <span class="text-gray-500">国际</span>
+            <span id="intl-count" class="font-semibold text-gray-700">-</span>
+          </div>
+        </div>
+
+        <div class="flex items-center space-x-2">
+          <button onclick="refreshData()" id="refresh-btn"
+                  class="flex items-center space-x-1.5 text-sm text-gray-500 hover:text-primary-600 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+            <i class="fa fa-refresh" id="refresh-icon"></i>
+            <span>刷新</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 主体内容 -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div class="flex flex-col lg:flex-row gap-6">
+
+      <!-- 左侧：新闻列表 -->
+      <div class="flex-1 min-w-0">
+        <!-- 分类筛选 -->
+        <div class="bg-white rounded-xl shadow-card p-1 mb-5 flex space-x-1 overflow-x-auto">
+          <button onclick="filterCategory('all')" id="tab-all"
+                  class="category-tab active flex-1 min-w-[80px] px-4 py-2.5 text-sm font-medium rounded-lg text-center transition-colors text-primary-700 bg-primary-50">
+            <i class="fa fa-th-large mr-1.5"></i>全部
+          </button>
+          <button onclick="filterCategory('domestic')" id="tab-domestic"
+                  class="category-tab flex-1 min-w-[80px] px-4 py-2.5 text-sm font-medium rounded-lg text-center transition-colors text-gray-600 hover:bg-gray-50">
+            <i class="fa fa-flag mr-1.5 text-red-500"></i>国内政治
+          </button>
+          <button onclick="filterCategory('international')" id="tab-international"
+                  class="category-tab flex-1 min-w-[80px] px-4 py-2.5 text-sm font-medium rounded-lg text-center transition-colors text-gray-600 hover:bg-gray-50">
+            <i class="fa fa-globe mr-1.5 text-blue-500"></i>国际局势
+          </button>
+        </div>
+
+        <!-- 搜索框 -->
+        <div class="relative mb-5">
+          <i class="fa fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+          <input type="text" id="search-input" placeholder="搜索新闻标题、标签..."
+                 oninput="handleSearch(this.value)"
+                 class="w-full pl-11 pr-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all shadow-sm">
+        </div>
+
+        <!-- 新闻列表 -->
+        <div id="news-list" class="space-y-4">
+          <div class="text-center py-20">
+            <i class="fa fa-circle-o-notch fa-spin text-3xl text-gray-300 mb-4"></i>
+            <p class="text-gray-400">正在加载新闻数据...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 右侧：侧边栏 -->
+      <aside class="w-full lg:w-80 space-y-5">
+        <!-- 热门标签云 -->
+        <div class="bg-white rounded-xl shadow-card p-5">
+          <h3 class="text-sm font-bold text-gray-800 mb-4 flex items-center">
+            <i class="fa fa-tags text-primary-500 mr-2"></i>
+            热门标签
+          </h3>
+          <div id="tag-cloud" class="flex flex-wrap gap-2">
+            <span class="text-sm text-gray-400">加载中...</span>
+          </div>
+        </div>
+
+        <!-- 来源分布 -->
+        <div class="bg-white rounded-xl shadow-card p-5">
+          <h3 class="text-sm font-bold text-gray-800 mb-4 flex items-center">
+            <i class="fa fa-pie-chart text-primary-500 mr-2"></i>
+            来源分布
+          </h3>
+          <div id="source-stats" class="space-y-3">
+            <span class="text-sm text-gray-400">加载中...</span>
+          </div>
+        </div>
+
+        <!-- 关于 -->
+        <div class="bg-gradient-to-br from-primary-50 to-red-50 rounded-xl p-5 border border-primary-100">
+          <h3 class="text-sm font-bold text-primary-800 mb-2">关于本站</h3>
+          <p class="text-xs text-primary-600/80 leading-relaxed">
+            每天早上 7:00 自动聚合新华网、中新网、新浪等权威媒体的头条政治新闻，通过智能算法筛选热度最高的内容，自动标注新闻标签。
+          </p>
+          <div class="mt-3 flex items-center space-x-3">
+            <a href="political_news_rss.xml" target="_blank"
+               class="inline-flex items-center space-x-1 text-xs text-primary-600 hover:text-primary-800 font-medium">
+              <i class="fa fa-rss"></i>
+              <span>RSS 源</span>
+            </a>
+            <span class="text-primary-300">|</span>
+            <span class="text-xs text-primary-500/60">数据每 24h 更新</span>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <!-- 底部 -->
+  <footer class="bg-white border-t border-gray-200 mt-12">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div class="flex flex-col sm:flex-row items-center justify-between text-xs text-gray-400">
+        <p>全球政治头条聚合 · 数据来源于新华网、中新网、新浪新闻等权威媒体</p>
+        <p class="mt-2 sm:mt-0">仅供信息参考，不代表本站立场</p>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // ============ 全局状态 ============
+    let allNews = [];
+    let filteredNews = [];
+    let currentCategory = 'all';
+    let currentSearch = '';
+
+    // ============ 初始化 ============
+    document.addEventListener('DOMContentLoaded', () => {
+      loadData();
+    });
+
+    // ============ 数据加载 ============
+    async function loadData() {
+      try {
+        // 添加时间戳避免缓存
+        const ts = new Date().getTime();
+        const res = await fetch(`news_data.json?_t=${ts}`);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+
+        allNews = data.news || [];
+        document.getElementById('update-time').textContent =
+          '更新于 ' + (data.generated_at || '刚刚');
+        document.getElementById('total-count').textContent = data.total || allNews.length;
+        document.getElementById('domestic-count').textContent = data.domestic_count || 0;
+        document.getElementById('intl-count').textContent = data.international_count || 0;
+
+        applyFilters();
+        renderTagCloud();
+        renderSourceStats();
+      } catch (err) {
+        console.error('加载失败:', err);
+        document.getElementById('news-list').innerHTML = `
+          <div class="text-center py-16 bg-white rounded-xl shadow-card">
+            <i class="fa fa-exclamation-circle text-4xl text-gray-300 mb-4"></i>
+            <p class="text-gray-500 mb-2">数据加载失败</p>
+            <p class="text-xs text-gray-400">${err.message}</p>
+            <button onclick="loadData()" class="mt-4 px-4 py-2 bg-primary-50 text-primary-600 rounded-lg text-sm hover:bg-primary-100 transition-colors">
+              重试
+            </button>
+          </div>
+        `;
+      }
+    }
+
+    // ============ 刷新 ============
+    async function refreshData() {
+      const icon = document.getElementById('refresh-icon');
+      icon.classList.add('fa-spin');
+      await loadData();
+      setTimeout(() => icon.classList.remove('fa-spin'), 500);
+    }
+
+    // ============ 筛选逻辑 ============
+    function filterCategory(cat) {
+      currentCategory = cat;
+      // 更新标签样式
+      document.querySelectorAll('.category-tab').forEach(btn => {
+        btn.classList.remove('active', 'text-primary-700', 'bg-primary-50');
+        btn.classList.add('text-gray-600');
+      });
+      const activeBtn = document.getElementById('tab-' + cat);
+      activeBtn.classList.add('active', 'text-primary-700', 'bg-primary-50');
+      activeBtn.classList.remove('text-gray-600');
+
+      applyFilters();
+    }
+
+    function handleSearch(value) {
+      currentSearch = value.trim().toLowerCase();
+      applyFilters();
+    }
+
+    function applyFilters() {
+      filteredNews = allNews.filter(n => {
+        const matchCat = currentCategory === 'all' || n.category === currentCategory;
+        const matchSearch = !currentSearch ||
+          n.title.toLowerCase().includes(currentSearch) ||
+          n.description.toLowerCase().includes(currentSearch) ||
+          (n.tags || []).some(t => t.name.toLowerCase().includes(currentSearch));
+        return matchCat && matchSearch;
+      });
+      renderNews();
+    }
+
+    // ============ 渲染新闻列表 ============
+    function renderNews() {
+      const container = document.getElementById('news-list');
+
+      if (filteredNews.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-16 bg-white rounded-xl shadow-card">
+            <i class="fa fa-inbox text-4xl text-gray-300 mb-4"></i>
+            <p class="text-gray-500">没有找到符合条件的新闻</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = filteredNews.map((news, i) => renderNewsCard(news, i)).join('');
+    }
+
+    function renderNewsCard(news, index) {
+      const rank = index + 1;
+      const isTop3 = rank <= 3;
+      const catIcon = news.category === 'domestic' ? 'flag' : 'globe';
+      const catColor = news.category === 'domestic' ? 'text-red-500' : 'text-blue-500';
+      const catLabel = news.category === 'domestic' ? '国内' : news.category === 'international' ? '国际' : '综合';
+      const heatPercent = Math.min(100, (news.heat_score || 0) / 2);
+
+      const tagsHtml = (news.tags || []).map(tag =>
+        `<span class="tag-badge inline-block px-2 py-0.5 rounded text-xs font-medium" style="color:${tag.color};background:${tag.bg};border:1px solid ${tag.color}20;">${tag.name}</span>`
+      ).join('');
+
+      const rankBadge = isTop3
+        ? `<span class="w-7 h-7 rounded-lg bg-gradient-to-br from-primary-500 to-primary-700 text-white flex items-center justify-center text-sm font-bold shadow-md">${rank}</span>`
+        : `<span class="w-7 h-7 rounded-lg bg-gray-100 text-gray-500 flex items-center justify-center text-sm font-medium">${rank}</span>`;
+
+      return `
+        <article class="news-card animate-in bg-white rounded-xl shadow-card p-5 sm:p-6" style="animation-delay: ${index * 0.03}s">
+          <div class="flex items-start gap-4">
+            <div class="flex-shrink-0 mt-0.5">${rankBadge}</div>
+            <div class="flex-1 min-w-0">
+              <!-- 标题 -->
+              <a href="${news.link}" target="_blank" rel="noopener noreferrer"
+                 class="group block">
+                <h2 class="headline-font text-base sm:text-lg font-semibold text-gray-900 leading-snug group-hover:text-primary-700 transition-colors truncate-2">
+                  ${news.title}
+                </h2>
+              </a>
+
+              <!-- 标签 -->
+              <div class="mt-2 flex flex-wrap gap-1.5">
+                ${tagsHtml}
+              </div>
+
+              <!-- 摘要 -->
+              <p class="mt-2.5 text-sm text-gray-500 leading-relaxed truncate-3">
+                ${news.description || '暂无摘要'}
+              </p>
+
+              <!-- 底部信息 -->
+              <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-gray-400">
+                <span class="flex items-center space-x-1">
+                  <i class="fa fa-${catIcon} ${catColor}"></i>
+                  <span>${catLabel}</span>
+                </span>
+                <span class="flex items-center space-x-1">
+                  <i class="fa fa-building-o"></i>
+                  <span>${news.source_name}</span>
+                </span>
+                ${news.pub_date ? `
+                <span class="flex items-center space-x-1">
+                  <i class="fa fa-clock-o"></i>
+                  <span>${formatDate(news.pub_date)}</span>
+                </span>
+                ` : ''}
+
+                <!-- 热度条 -->
+                <div class="flex items-center space-x-1.5 ml-auto">
+                  <i class="fa fa-fire text-orange-400"></i>
+                  <div class="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                    <div class="h-full rounded-full heat-bar" style="width: ${heatPercent}%"></div>
+                  </div>
+                  <span class="text-orange-500 font-medium">${news.heat_score || 0}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </article>
+      `;
+    }
+
+    // ============ 渲染标签云 ============
+    function renderTagCloud() {
+      const tagCounts = {};
+      allNews.forEach(n => {
+        (n.tags || []).forEach(t => {
+          tagCounts[t.name] = (tagCounts[t.name] || 0) + 1;
+        });
+      });
+
+      const sortedTags = Object.entries(tagCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 12);
+
+      if (sortedTags.length === 0) {
+        document.getElementById('tag-cloud').innerHTML = '<span class="text-sm text-gray-400">暂无标签</span>';
+        return;
+      }
+
+      document.getElementById('tag-cloud').innerHTML = sortedTags.map(([name, count]) => {
+        // 找到对应的标签颜色
+        const tagInfo = allNews.flatMap(n => n.tags || []).find(t => t.name === name);
+        const color = tagInfo ? tagInfo.color : '#6b7280';
+        const bg = tagInfo ? tagInfo.bg : '#f3f4f6';
+        return `<button onclick="filterByTag('${name}')"
+          class="tag-badge px-2.5 py-1 rounded-lg text-xs font-medium transition-all hover:scale-105"
+          style="color:${color};background:${bg};border:1px solid ${color}25;">
+          ${name} <span class="opacity-60">${count}</span>
+        </button>`;
+      }).join('');
+    }
+
+    function filterByTag(tagName) {
+      document.getElementById('search-input').value = tagName;
+      currentSearch = tagName.toLowerCase();
+      applyFilters();
+    }
+
+    // ============ 渲染来源统计 ============
+    function renderSourceStats() {
+      const sourceCounts = {};
+      allNews.forEach(n => {
+        sourceCounts[n.source_name] = (sourceCounts[n.source_name] || 0) + 1;
+      });
+
+      const sorted = Object.entries(sourceCounts).sort((a, b) => b[1] - a[1]);
+      const max = sorted[0]?.[1] || 1;
+
+      document.getElementById('source-stats').innerHTML = sorted.map(([name, count]) => {
+        const pct = Math.round((count / allNews.length) * 100);
+        const barPct = Math.round((count / max) * 100);
+        return `
+          <div class="flex items-center gap-3">
+            <span class="text-xs text-gray-600 w-20 truncate flex-shrink-0">${name}</span>
+            <div class="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+              <div class="h-full rounded-full bg-gradient-to-r from-primary-400 to-primary-600 transition-all" style="width: ${barPct}%"></div>
+            </div>
+            <span class="text-xs text-gray-400 w-10 text-right">${count}条</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // ============ 工具函数 ============
+    function formatDate(dateStr) {
+      try {
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return dateStr;
+        const now = new Date();
+        const diff = now - d;
+        const hours = Math.floor(diff / 3600000);
+        if (hours < 1) return '刚刚';
+        if (hours < 24) return hours + '小时前';
+        if (hours < 48) return '昨天';
+        return `${d.getMonth() + 1}月${d.getDate()}日`;
+      } catch {
+        return dateStr;
+      }
+    }
+  </script>
+</body>
+</html>
